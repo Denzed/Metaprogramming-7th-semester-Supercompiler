@@ -14,26 +14,40 @@ bt m ns c = case m ns c of
   Variants cs -> Node c $ Variants [(c, bt m (unused c ns) e) | (c, e) <- cs]
 
 driveMachine :: Program -> Machine Conf
-driveMachine p = drive where
-  drive :: Machine Conf
-  drive ns (Var _) = Stop
-  drive ns (Ctr _ []) = Stop
-  drive ns (Ctr _ args) = Decompose args
-  drive ns (Let (x, t1) t2) = Decompose [t1, t2]
-  drive ns (FCall name args) = Transient $ e // (zip vs args) where
-    FDef _ vs e = fDef p name
-  drive ns (GCall gn (Ctr cn cargs : args)) = Transient $ e // sub where
-    (GDef _ (Pat _ cvs) vs e) = gDef p gn cn
-    sub = zip (cvs ++ vs) (cargs ++ args)
-  drive ns (GCall gn args@((Var _):_)) = Variants $ variants gn args where
-    variants gn args = map (scrutinize ns args) (gDefs p gn)
-  drive ns (GCall gn (inner:args)) = inject (drive ns inner) where
-    inject (Transient t) = Transient (GCall gn (t:args))
-    inject (Variants cs) = Variants $ map f cs
-    f (c, t) = (c, GCall gn (t:args))
+driveMachine p = drive 
+  where drive :: Machine Conf
+        drive ns (Var _)               = Stop
+        drive ns (Ctr _ [])            = Stop
+        drive ns (Ctr _ args)          = Decompose args
+        drive ns (Call name args)      = Transient $ e // (zip vs args) 
+          where FDef _ vs e = fDef p name
+        drive ns (Lmb _ e)             = Transient e
+        drive ns ((Lmb x e1) :@: e2)   = Transient $ e1 // [(x, e2)]
+        drive ns (v@(Var _) :@: e2)    = Decompose [v, e2]
+        drive ns (e1 :@: e2)             
+          | (Transient e1') <- pe1     = Transient $ e1' :@: e2
+          | (Variants vs)   <- pe1     = Variants $ map (fmap (:@: e2)) vs
+          | (Decompose e1s) <- pe1     = Decompose $ e1s ++ [e2] -- unlike Case below the only feasible 
+                                                                   -- source of Decompose is application
+          where pe1 = drive ns e1
+        drive ns (Case (Ctr c es) css) = Transient $ matchCase css
+          where matchCase ((Pat c' vs, e):css') 
+                  | c == c' && (length es) == (length vs) = e // zip vs es
+                  | otherwise                             = matchCase css'
+                matchCase []                              = undefined -- we don't want this situation to happen
+        drive ns (Case (Var x) css)    = Variants $ map (scrutinize ns x) css
+        drive ns (Case e css)
+          | (Transient e') <- pe       = Transient (Case e' css)
+          | (Variants vs)  <- pe       = Variants $ map (fmap $ flip Case css) vs
+          | otherwise                  = Stop -- we get Decompose from Ctr, :@: and Let,
+                                                -- but Case must be injected differently into them
+                                                -- so let's just stop 
+          where pe = drive ns e
+        drive ns (Let (_, t1) t2)      = Decompose [t1, t2]
+  
 
-scrutinize :: NameSupply -> [Expr] -> GDef -> (Contract, Expr)
-scrutinize ns (Var v : args) (GDef _ (Pat cn cvs) vs body) =
-  (Contract v (Pat cn fresh), body // sub) where
+scrutinize :: NameSupply -> Name -> (Pat, Expr) -> (Contract, Expr)
+scrutinize ns v ((Pat cn cvs), e) =
+  (Contract v (Pat cn fresh), e // sub) where
     fresh = take (length cvs) ns
-    sub = zip (cvs ++ vs) (map Var fresh ++ args)
+    sub = zip cvs (map Var fresh)
