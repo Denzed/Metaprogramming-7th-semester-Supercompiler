@@ -48,7 +48,7 @@ sizeWhistle :: Expr -> Bool
 sizeWhistle e
   | (Call _ es) <- e = not (all isVar es) && size e > sizeBound
   | otherwise        = False
-  where sizeBound = 179
+  where sizeBound = 10
 
 generalizeNode :: Machine Conf -> NameSupply -> Node Conf -> Node Conf
 generalizeNode = generalizeNode' []

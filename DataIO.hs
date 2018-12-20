@@ -20,13 +20,6 @@ pprintTree indent msg (Node expr next) = make next where
     (indent ++ msg) :  (indent ++ "|__" ++  show expr) : (concat (map (\(x, t) -> pprintTree (indent ++ " ") ("?" ++ show x) t) cs))
 
 instance Show Expr where
-  show (Ctr "Nil" [])        = "``\'\'"
-  show (Ctr "Cons" [Ctr "B" [], Ctr "Nil" []]) = "``B\'\'"
-  show (Ctr "Cons" [Ctr "A" [], (Ctr "Cons" [Ctr "B" [], Ctr "Nil" []])]) = "``AB\'\'"
-  show (Ctr "Cons" [Ctr "A" [], (Ctr "Cons" [Ctr "A" [], (Ctr "Cons" [Ctr "B" [], Ctr "Nil" []])])]) = "``AAB\'\'"
-  show (Ctr "Cons" [x, y])   = (show x) ++ ":" ++ (show y)
-  show (Ctr "A" [])          = "\'A\'"
-  show (Ctr "B" [])          = "\'B\'"
   show (Var n)               = n
   show (Ctr n es)            = n ++ "(" ++ (intercalate ", " (map show es)) ++ ")"
   show (Call n es)           = (fn n) ++ "(" ++ (intercalate ", " (map show es)) ++ ")"
@@ -37,8 +30,9 @@ instance Show Expr where
           collectLambdas ns e         = (ns, e)
   show (e1 :@: e2@(_ :@: _)) = show e1 ++ " (" ++ show e2 ++ ")"
   show (e1 :@: e2)           = show e1 ++ " " ++ show e2
+  show (Case e css)          = "case " ++ show e ++ " of " ++ intercalate "; " (map (\(p, e') -> show p ++ " -> " ++ show e') css)
   show (Let (v, e1) e2)      = "let " ++ v ++ " = " ++ (show e1) ++ " in " ++ (show e2)
-
+  
 fn :: String -> String
 fn (_:s:ss) = (toLower s) : ss
 
@@ -46,8 +40,6 @@ instance Show FDef where
   show (FDef n args body) = (fn n) ++ "(" ++ intercalate ", " args ++ ") = " ++ (show body) ++ ";"
 
 instance Show Pat where
-  show (Pat "Nil" vs) = "``\'\'"
-  show (Pat "Cons" [v1, v2]) = v1 ++ ":" ++ v2
   show (Pat cn vs) = cn ++ "(" ++ intercalate "," vs ++ ")"
 
 instance Show Contract where
