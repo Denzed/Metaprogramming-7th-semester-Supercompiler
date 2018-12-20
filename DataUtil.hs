@@ -3,7 +3,7 @@ module DataUtil(
   fDef,
   (//), renaming, vnames,nameSupply,
   nodeLabel,isRepeated,unused
-  ) where
+) where
 
 import Data
 import Data.Maybe

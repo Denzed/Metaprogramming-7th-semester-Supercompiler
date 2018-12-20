@@ -28,7 +28,7 @@ driveMachine p = drive
           | (Transient e1') <- pe1     = Transient $ e1' :@: e2
           | (Variants vs)   <- pe1     = Variants $ map (fmap (:@: e2)) vs
           | (Decompose e1s) <- pe1     = Decompose $ e1s ++ [e2] -- unlike Case below the only feasible 
-                                                                   -- source of Decompose is application
+                                                                 -- source of Decompose is application
           where pe1 = drive ns e1
         drive ns (Case (Ctr c es) css) = Transient $ matchCase css
           where matchCase ((Pat c' vs, e):css') 
@@ -40,8 +40,8 @@ driveMachine p = drive
           | (Transient e') <- pe       = Transient (Case e' css)
           | (Variants vs)  <- pe       = Variants $ map (fmap $ flip Case css) vs
           | otherwise                  = Stop -- we get Decompose from Ctr, :@: and Let,
-                                                -- but Case must be injected differently into them
-                                                -- so let's just stop 
+                                              -- but Case must be injected differently into them
+                                              -- so let's just stop 
           where pe = drive ns e
         drive ns (Let (_, t1) t2)      = Decompose [t1, t2]
   
