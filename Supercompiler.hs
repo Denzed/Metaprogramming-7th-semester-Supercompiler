@@ -7,12 +7,24 @@ import Data.Ord
 import Data
 import DataUtil
 import Driving
+import Folding
 import Generalize
+import Generator
 
--- supercompile :: Task -> Task
--- supercompile (e, p) =
---   residuate $ simplify $ foldTree $ buildFTree (addPropagation $ driveMachine p) e
+supercompile :: Task -> Task
+supercompile (e, p) = residuate $ simplify $ foldTree $ buildFTree (addPropagation $ driveMachine p) e
 
+simplify :: Graph Conf -> Graph Conf
+simplify (Node e (Decompose ts)) = Node e (Decompose $ map simplify ts)
+simplify (Node e (Variants cs))  = Node e (Variants [(c, simplify t) | (c, t) <- cs])
+simplify (Node e (Transient t)) 
+  | isBase e t                   = Node e $ Transient $ simplify t
+  | otherwise                    = simplify t
+simplify t                       = t
+
+buildFTree :: Machine Conf -> Conf -> Tree Conf
+buildFTree m e = bft m nameSupply e  
+  
 bft :: Machine Conf -> NameSupply -> Conf -> Tree Conf
 bft d ns e 
   | whistle e,
